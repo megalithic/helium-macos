@@ -24,4 +24,5 @@ prepare_sources "$_download"
 configure_build "$_arch" release
 
 helium_build chrome/installer/mac
+"$_root_dir/inject_widevine.sh" "$_src_dir/out/Default/Helium.app"
 "$_root_dir/sign_and_package_app.sh"
