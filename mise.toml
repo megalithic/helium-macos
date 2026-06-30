@@ -1,0 +1,59 @@
+# Build environment for megalithic/helium-macos.
+# Tools come from nix (nixpkgs) — mise handles task orchestration and env.
+
+[env]
+PYTHONUNBUFFERED = "1"
+# Set before building with your Developer ID:
+# MACOS_CERTIFICATE_NAME = "Developer ID Application: ..."
+# PROD_MACOS_NOTARIZATION_TEAM_ID = "..."
+# PROD_MACOS_NOTARIZATION_APPLE_ID = "..."
+# PROD_MACOS_NOTARIZATION_PWD = "@keychain:..."
+
+[tasks.deps]
+description = "Create venv and install Python deps needed by Helium build scripts"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+if [ ! -d .venv ]; then
+  python3 -m venv .venv
+fi
+source .venv/bin/activate
+pip install httplib2==0.22.0 requests pillow
+echo "Python deps installed. Activate venv with: source .venv/bin/activate"
+'''
+
+[tasks.build]
+description = "Build signed arm64 Helium (requires MACOS_CERTIFICATE_NAME set)"
+depends = ["deps"]
+run = "./build.sh arm64"
+
+[tasks.dev-setup]
+description = "Prepare dev checkout: download source, apply patches, configure GN"
+depends = ["deps"]
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+source .venv/bin/activate
+source ./dev.sh
+he setup
+'''
+
+[tasks.dev-build]
+description = "Build dev binary with autoninja/siso"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+source .venv/bin/activate
+source ./dev.sh
+he build
+'''
+
+[tasks.dev-run]
+description = "Run dev build"
+run = '''
+#!/usr/bin/env bash
+set -euo pipefail
+source .venv/bin/activate
+source ./dev.sh
+he run
+'''
