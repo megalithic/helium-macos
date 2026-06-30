@@ -83,4 +83,6 @@ cd "$_src_dir"
 
 ninja -C out/Default chrome chromedriver
 
+"$_root_dir/inject_widevine.sh" "$_src_dir/out/Default/Helium.app"
+
 "$_root_dir/sign_and_package_app.sh"
