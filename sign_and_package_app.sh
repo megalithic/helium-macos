@@ -28,7 +28,16 @@ if ! [ -z "${MACOS_CERTIFICATE_NAME-}" ]; then
 
   # Sign the binary
   codesign --sign "$MACOS_CERTIFICATE_NAME" --force --timestamp --identifier chrome_crashpad_handler --options=restrict,library,runtime,kill out/Default/Helium.app/Contents/Frameworks/Helium\ Framework.framework/Helpers/chrome_crashpad_handler
-  codesign --sign "$MACOS_CERTIFICATE_NAME" --force --timestamp --identifier net.imput.helium.helper --options restrict,library,runtime,kill --entitlements $_root_dir/entitlements/helper-entitlements.plist out/Default/Helium.app/Contents/Frameworks/Helium\ Framework.framework/Helpers/Helium\ Helper.app
+  # NOTE(megalithic): drop `library` (library-validation) from options so the
+  # `com.apple.security.cs.disable-library-validation` entitlement can take effect.
+  # Without this, Widevine (signed by Google's team EQHXZ8M8AV) cannot be loaded
+  # by the base helper (signed by imput's team S4Q33XPHB4) — library-validation
+  # in --options overrides the entitlement. Brave/Chromium upstream do not set
+  # `library` here for the same reason. See helper flags comparison:
+  #   Brave  base helper: 0x10a00 (no library-validation) → Widevine works
+  #   Chrome base helper: 0x12a00 (has library-validation, but same team as CDM)
+  #   Helium base helper: 0x12a00 (had library-validation, different team)  ← bug
+  codesign --sign "$MACOS_CERTIFICATE_NAME" --force --timestamp --identifier net.imput.helium.helper --options restrict,runtime,kill --entitlements $_root_dir/entitlements/helper-entitlements.plist out/Default/Helium.app/Contents/Frameworks/Helium\ Framework.framework/Helpers/Helium\ Helper.app
   codesign --sign "$MACOS_CERTIFICATE_NAME" --force --timestamp --identifier net.imput.helium.helper.renderer --options restrict,kill,runtime --entitlements $_root_dir/entitlements/helper-renderer-entitlements.plist out/Default/Helium.app/Contents/Frameworks/Helium\ Framework.framework/Helpers/Helium\ Helper\ \(Renderer\).app
   codesign --sign "$MACOS_CERTIFICATE_NAME" --force --timestamp --identifier net.imput.helium.helper --options restrict,kill,runtime --entitlements $_root_dir/entitlements/helper-gpu-entitlements.plist out/Default/Helium.app/Contents/Frameworks/Helium\ Framework.framework/Helpers/Helium\ Helper\ \(GPU\).app
   codesign --sign "$MACOS_CERTIFICATE_NAME" --force --timestamp --identifier net.imput.helium.framework.AlertNotificationService --options restrict,library,runtime,kill out/Default/Helium.app/Contents/Frameworks/Helium\ Framework.framework/Helpers/Helium\ Helper\ \(Alerts\).app
