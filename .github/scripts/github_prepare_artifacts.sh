@@ -18,20 +18,25 @@ if [ -f "$_root_dir/build_finished_$_target_cpu.log" ]; then
   cd "$_src_dir"
 
   xattr -cs out/Default/Helium.app
+  "$_root_dir/inject_widevine.sh" "$_src_dir/out/Default/Helium.app"
 
-  # Prepar the certificate for app signing
-  echo $MACOS_CERTIFICATE | base64 --decode > "$TMPDIR/certificate.p12"
+  # Prepare the certificate for Developer ID signing when secrets are available.
+  # Fork CI can still produce an ad-hoc signed test DMG without signing secrets.
+  if [ -n "${MACOS_CERTIFICATE:-}" ] && [ -n "${MACOS_CERTIFICATE_NAME:-}" ]; then
+    echo "$MACOS_CERTIFICATE" | base64 --decode > "$TMPDIR/certificate.p12"
 
-  security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-  security default-keychain -s build.keychain
-  security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
-  security import "$TMPDIR/certificate.p12" -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
-  security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+    security create-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+    security default-keychain -s build.keychain
+    security unlock-keychain -p "$MACOS_CI_KEYCHAIN_PWD" build.keychain
+    security import "$TMPDIR/certificate.p12" -k build.keychain -P "$MACOS_CERTIFICATE_PWD" -T /usr/bin/codesign
+    security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$MACOS_CI_KEYCHAIN_PWD" build.keychain
 
-  if ! [ -z "${PROD_MACOS_SPECIAL_ENTITLEMENTS_PROFILE_B64:-}" ]; then
-    export PROD_MACOS_SPECIAL_ENTITLEMENTS_PROFILE_PATH=$(mktemp)
-    echo "$PROD_MACOS_SPECIAL_ENTITLEMENTS_PROFILE_B64" \
-      | base64 --decode > "$PROD_MACOS_SPECIAL_ENTITLEMENTS_PROFILE_PATH"
+    if ! [ -z "${PROD_MACOS_SPECIAL_ENTITLEMENTS_PROFILE_B64:-}" ]; then
+      PROD_MACOS_SPECIAL_ENTITLEMENTS_PROFILE_PATH=$(mktemp)
+      export PROD_MACOS_SPECIAL_ENTITLEMENTS_PROFILE_PATH
+      echo "$PROD_MACOS_SPECIAL_ENTITLEMENTS_PROFILE_B64" \
+        | base64 --decode > "$PROD_MACOS_SPECIAL_ENTITLEMENTS_PROFILE_PATH"
+    fi
   fi
 
   export OUT_DMG_PATH="$_root_dir/$_file_name"

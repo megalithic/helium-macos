@@ -25,7 +25,7 @@ def get_asset_url(release, arch):
   for asset in release['assets']:
       if asset['name'].endswith(f'_{arch}-macos.dmg'):
         return asset['browser_download_url']
-  assert(False)
+  return None
 
 
 def get_historic_dmg_urls():
@@ -70,6 +70,10 @@ def generate_delta_for(version, urls, args):
   for i, arch in enumerate(['arm64', 'x86_64']):
     if args[i] is None:
       print(f'skipping {arch}')
+      continue
+
+    if urls[i] is None:
+      print(f'skipping {arch}: no historic dmg asset found')
       continue
 
     with tempfile.NamedTemporaryFile(suffix='.dmg') as f:
