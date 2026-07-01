@@ -16,19 +16,21 @@ fi
 
 cd "$_src_dir"
 
-echo $(date +%s) | tee -a "$_root_dir/build_times_$_target_cpu.log"
-echo "status=running" >> $GITHUB_OUTPUT
+date +%s | tee -a "$_root_dir/build_times_$_target_cpu.log"
+echo "status=running" >> "$GITHUB_OUTPUT"
 
-if ! env | grep -q SCCACHE; then
+if [ -z "${SCCACHE_GHA_ENABLED:-}" ]; then
+  if [ -n "${ACTIONS_CACHE_URL:-}" ] || [ -n "${ACTIONS_RESULTS_URL:-}" ]; then
     export SCCACHE_GHA_ENABLED=on
     export SCCACHE_GHA_VERSION="$_target_cpu"
+  else
+    echo "warning: GitHub Actions cache URL missing; using local sccache cache"
+  fi
 fi
-
-export SCCACHE_WEBDAV_KEY_PREFIX="$_target_cpu"
 
 set +e
 
-timeout -k 7m -s SIGTERM ${_remaining_time:-19680}s ninja -C out/Default chrome chromedriver # 328 m as default $_remaining_time
+timeout -k 7m -s SIGTERM "${_remaining_time:-19680}s" ninja -C out/Default chrome chromedriver # 328 m as default $_remaining_time
 
 _error_code="${?}"
 if [[ "$_error_code" -eq 124 ]]; then
@@ -41,5 +43,5 @@ fi
 
 set -e
 
-echo $(date +%s) | tee "$_root_dir/build_finished_$_target_cpu.log"
-echo "status=finished" >> $GITHUB_OUTPUT
+date +%s | tee "$_root_dir/build_finished_$_target_cpu.log"
+echo "status=finished" >> "$GITHUB_OUTPUT"
