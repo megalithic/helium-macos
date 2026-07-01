@@ -14,19 +14,24 @@ _gh_run_href="https://github.com/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_
 touch ./github_release_note.md
 printf '## Helium macOS %s\n' "${_helium_version}" | tee -a ./github_release_note.md
 
-if [ -f $_root_dir/announcements.md ]; then
-    printf '### Announcements %s\n\n' | tee -a ./github_release_note.md
+if [ -f "$_root_dir/announcements.md" ]; then
+    printf '### Announcements\n\n' | tee -a ./github_release_note.md
 
     _announcement="${_root_dir}/announcements.md"
-    cat $_announcement | tee -a ./github_release_note.md
+    cat "$_announcement" | tee -a ./github_release_note.md
 
     printf '\n' | tee -a ./github_release_note.md
-    printf '### Release Assets Info %s\n\n' | tee -a ./github_release_note.md
+    printf '### Release Assets Info\n\n' | tee -a ./github_release_note.md
 fi
 
-cat $_arm64_hash_name | tee -a ./github_release_note.md
-printf '\n' | tee -a ./github_release_note.md
-cat $_x64_hash_name | tee -a ./github_release_note.md
+if [ -f "$_arm64_hash_name" ]; then
+    cat "$_arm64_hash_name" | tee -a ./github_release_note.md
+    printf '\n' | tee -a ./github_release_note.md
+fi
+
+if [ -f "$_x64_hash_name" ]; then
+    cat "$_x64_hash_name" | tee -a ./github_release_note.md
+fi
 
 submodule_commit_at() {
     git ls-tree "$1" helium-chromium | awk '{print $3}'
@@ -42,6 +47,6 @@ commit_now=$(submodule_commit_at HEAD)
   printf '```\n\n### helium-chromium\n```\n'
   git -C helium-chromium log --oneline "$commit_then..$commit_now"
   printf '```\n\n---\n\n'
-  printf 'See [this GitHub Actions Run](%s) for the [Workflow file](%s/workflow) used '
-  printf 'as well as the build logs and artifacts\n' "$_gh_run_href" "$_gh_run_href" 
+  printf 'See [this GitHub Actions Run](%s) for the [Workflow file](%s/workflow) used ' "$_gh_run_href" "$_gh_run_href"
+  printf 'as well as the build logs and artifacts\n'
 } | tee -a ./github_release_note.md
