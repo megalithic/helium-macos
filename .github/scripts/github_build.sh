@@ -15,9 +15,13 @@ cd "$_src_dir"
 echo $(date +%s) | tee -a "$_root_dir/build_times_$_target_cpu.log"
 echo "status=running" >> $GITHUB_OUTPUT
 
-if ! env | grep -q SCCACHE; then
+if [ -z "${SCCACHE_GHA_ENABLED:-}" ]; then
+  if [ -n "${ACTIONS_CACHE_URL:-}" ] || [ -n "${ACTIONS_RESULTS_URL:-}" ]; then
     export SCCACHE_GHA_ENABLED=on
     export SCCACHE_GHA_VERSION="$_target_cpu"
+  else
+    echo "warning: GitHub Actions cache URL missing; using local sccache cache"
+  fi
 fi
 
 export SCCACHE_WEBDAV_KEY_PREFIX="$_target_cpu"
