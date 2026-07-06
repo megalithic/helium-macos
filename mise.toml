@@ -9,6 +9,21 @@ PYTHONUNBUFFERED = "1"
 # PROD_MACOS_NOTARIZATION_APPLE_ID = "..."
 # PROD_MACOS_NOTARIZATION_PWD = "@keychain:..."
 
+# Install the signed + notarized Helium release via our Homebrew tap.
+#   mise bootstrap packages apply --manager brew-cask
+#
+# NOTE: mise's brew-cask backend fetches tap metadata from
+# raw.githubusercontent.com/.../api/cask/<token>.json WITHOUT sending a GitHub
+# token, so it 404s on our PRIVATE releases repo. This entry only works once
+# megalithic/helium-macos-releases is PUBLIC. While private, install with real
+# Homebrew instead (`brew install --cask helium`, which runs the cask's
+# authenticated download strategy) or the nix-native gh+hdiutil task.
+[bootstrap.brew.taps]
+"megalithic/helium" = "https://github.com/megalithic/helium-macos-releases"
+
+[bootstrap.packages]
+"brew-cask:megalithic/helium/helium" = "latest"
+
 [tasks.deps]
 description = "Create venv and install Python deps needed by Helium build scripts"
 run = '''
