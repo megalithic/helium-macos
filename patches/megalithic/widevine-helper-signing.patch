@@ -1,0 +1,38 @@
+--- /dev/null
++++ b/chrome/app/helper-entitlements.plist
+@@ -0,0 +1,8 @@
++<?xml version="1.0" encoding="UTF-8"?>
++<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
++<plist version="1.0">
++<dict>
++	<key>com.apple.security.cs.disable-library-validation</key>
++	<true/>
++</dict>
++</plist>
+--- a/chrome/installer/mac/BUILD.gn
++++ b/chrome/installer/mac/BUILD.gn
+@@ -141,6 +141,7 @@ copy("copies") {
+     "$root_gen_dir/chrome/app-entitlements.plist",
+     "$root_out_dir/dmg_tool",
+     "$root_out_dir/hfs_tool",
++    "//chrome/app/helper-entitlements.plist",
+     "//chrome/app/helper-gpu-entitlements.plist",
+     "//chrome/app/helper-renderer-entitlements.plist",
+     "pkg-dmg",
+--- a/chrome/installer/mac/signing/parts.py
++++ b/chrome/installer/mac/signing/parts.py
+@@ -60,7 +60,13 @@ def get_parts(config):
+         'helper-app': CodeSignedProduct(
+             '{0.framework_dir}/Helpers/{0.product} Helper.app'.format(config),
+             '{}.helper'.format(uncustomized_bundle_id),
+-            options=CodeSignOptions.FULL_HARDENED_RUNTIME_OPTIONS,
++            # The CDM utility process runs in this helper and loads the
++            # Widevine library, which is signed by Google's team rather than
++            # ours, so library validation must be off here.
++            options=CodeSignOptions.RESTRICT
++            | CodeSignOptions.KILL
++            | CodeSignOptions.HARDENED_RUNTIME,
++            entitlements='helper-entitlements.plist',
+             verify_options=verify_options,
+         ),
+         'helper-renderer-app': CodeSignedProduct(
