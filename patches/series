@@ -26,3 +26,4 @@ helium/macos/helium-immersive-fullscreen.patch
 helium/macos/fix-history-swiper-lifetime.patch
 
 megalithic/widevine-helper-signing.patch
+megalithic/extra-command-line-switches.patch

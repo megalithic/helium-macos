@@ -1,0 +1,131 @@
+--- a/chrome/app/chrome_main.cc
++++ b/chrome/app/chrome_main.cc
+@@ -181,6 +181,7 @@ int ChromeMain(int argc, const char** argv) {
+ #if BUILDFLAG(IS_MAC)
+   chrome::InitializeExitSixtyNineDetector();
+   SetUpBundleOverrides();
++  AppendExtraSwitchesFromEnvironmentAndDefaults(command_line);
+ #endif
+ 
+ #if BUILDFLAG(IS_LINUX)
+--- a/chrome/app/chrome_main_mac.h
++++ b/chrome/app/chrome_main_mac.h
+@@ -5,6 +5,10 @@
+ #ifndef CHROME_APP_CHROME_MAIN_MAC_H_
+ #define CHROME_APP_CHROME_MAIN_MAC_H_
+ 
++namespace base {
++class CommandLine;
++}
++
+ // Sets the app bundle (base::apple::FrameworkBundle()) to the framework's
+ // bundle, and sets the base bundle ID (base::apple::BaseBundleID()) to the
+ // proper value based on the running application. The base bundle ID is the
+@@ -12,6 +16,12 @@ void SetUpBundleOverrides();
+ // (helper) process.
+ void SetUpBundleOverrides();
+ 
++// In the browser process, appends switches from the HELIUM_EXTRA_FLAGS
++// environment variable and the ExtraCommandLineSwitches user default. Switches
++// already present win, so precedence is: command line, environment, defaults.
++void AppendExtraSwitchesFromEnvironmentAndDefaults(
++    base::CommandLine* command_line);
++
+ // Checks if the system or specific third-party applications launched a
+ // helper app directly in such a way that they cannot function.
+ bool IsHelperAppLaunchedBySystemOrThirdPartyApplication();
+--- a/chrome/app/chrome_main_mac.mm
++++ b/chrome/app/chrome_main_mac.mm
+@@ -6,7 +6,9 @@
+ 
+ #import <Cocoa/Cocoa.h>
+ 
++#include <optional>
+ #include <string>
++#include <vector>
+ 
+ #import "base/apple/bundle_locations.h"
+ #import "base/apple/foundation_util.h"
+@@ -14,10 +16,12 @@
+ #include "base/environment.h"
+ #include "base/files/file_path.h"
+ #include "base/path_service.h"
++#include "base/strings/string_split.h"
+ #include "base/strings/string_util.h"
+ #include "base/strings/sys_string_conversions.h"
+ #include "chrome/common/chrome_constants.h"
+ #include "chrome/common/chrome_paths_internal.h"
++#include "chrome/common/chrome_switches.h"
+ #include "content/public/common/content_paths.h"
+ #include "content/public/common/content_switches.h"
+ 
+@@ -100,8 +104,69 @@ NSBundle* OuterAppBundle() {
+   }
+ }
+ 
++// Appends switches from `args` that `command_line` doesn't already have.
++// Non-switch arguments (such as URLs) are ignored.
++void AppendMissingSwitches(base::CommandLine* command_line,
++                           const std::vector<std::string>& args) {
++  if (args.empty()) {
++    return;
++  }
++
++  base::CommandLine::StringVector argv = {""};
++  argv.insert(argv.end(), args.begin(), args.end());
++  const base::CommandLine extra(argv);
++
++  // The DevTools port is bound to the default profile only: a launch with its
++  // own --user-data-dir or a pipe (e.g. automation tools) shouldn't open it.
++  const bool skip_debugging_port =
++      command_line->HasSwitch(switches::kUserDataDir) ||
++      command_line->HasSwitch(switches::kRemoteDebuggingPipe);
++
++  for (const auto& [name, value] : extra.GetSwitches()) {
++    if (command_line->HasSwitch(name)) {
++      continue;
++    }
++    if (skip_debugging_port && name == switches::kRemoteDebuggingPort) {
++      continue;
++    }
++    command_line->AppendSwitchNative(name, value);
++  }
++}
++
+ }  // namespace
+ 
++void AppendExtraSwitchesFromEnvironmentAndDefaults(
++    base::CommandLine* command_line) {
++  if (command_line->HasSwitch(switches::kProcessType) ||
++      base::apple::IsBackgroundOnlyProcess()) {
++    return;
++  }
++
++  // GUI launches (Dock, Finder, open) don't inherit shell environment; use
++  // `launchctl setenv` for those, or prefer the user default below.
++  std::optional<std::string> env_flags =
++      base::Environment::Create()->GetVar("HELIUM_EXTRA_FLAGS");
++  if (env_flags) {
++    AppendMissingSwitches(
++        command_line,
++        base::SplitString(*env_flags, base::kWhitespaceASCII,
++                          base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY));
++  }
++
++  // Example:
++  //   defaults write net.imput.helium ExtraCommandLineSwitches -array
++  //   --remote-debugging-port=9223
++  @autoreleasepool {
++    NSArray<NSString*>* defaults_flags = [NSUserDefaults.standardUserDefaults
++        stringArrayForKey:@"ExtraCommandLineSwitches"];
++    std::vector<std::string> args;
++    for (NSString* flag in defaults_flags) {
++      args.push_back(base::SysNSStringToUTF8(flag));
++    }
++    AppendMissingSwitches(command_line, args);
++  }
++}
++
+ void SetUpBundleOverrides() {
+   @autoreleasepool {
+     base::apple::SetOverrideFrameworkBundlePath(
