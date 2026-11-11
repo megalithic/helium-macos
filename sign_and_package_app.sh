@@ -10,24 +10,32 @@ if [ -n "${MACOS_CERTIFICATE_NAME:-}" ]; then
     cp "$PROD_MACOS_SPECIAL_ENTITLEMENTS_PROFILE_PATH" "$_packaging/Helium.provisionprofile"
   fi
 
-  CREDENTIAL_ARGS=(store-credentials notarytool-profile)
-  NOTARY_ARGS=(--notary-arg=--keychain-profile=notarytool-profile)
-  if [ -n "${CI:-}" ]; then
-    CREDENTIAL_ARGS+=("--keychain=$HOME/Library/Keychains/build.keychain-db")
-    NOTARY_ARGS+=("--notary-arg=--keychain=$HOME/Library/Keychains/build.keychain-db")
-  fi
+  NOTARY_ARGS=()
+  if [ -n "${SKIP_NOTARIZATION:-}" ]; then
+    echo "warn: SKIP_NOTARIZATION set; signing without notarization" >&2
+  else
+    CREDENTIAL_ARGS=(store-credentials notarytool-profile)
+    NOTARY_ARGS=(--notarize --notary-arg=--keychain-profile=notarytool-profile)
+    if [ -n "${CI:-}" ]; then
+      CREDENTIAL_ARGS+=("--keychain=$HOME/Library/Keychains/build.keychain-db")
+      NOTARY_ARGS+=("--notary-arg=--keychain=$HOME/Library/Keychains/build.keychain-db")
+    fi
 
-  xcrun notarytool \
-    "${CREDENTIAL_ARGS[@]}" \
-    --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" \
-    --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" \
-    --password "$PROD_MACOS_NOTARIZATION_PWD"
+    # Keep xtrace from echoing the password into logs.
+    { set +x; } 2>/dev/null
+    xcrun notarytool \
+      "${CREDENTIAL_ARGS[@]}" \
+      --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" \
+      --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" \
+      --password "$PROD_MACOS_NOTARIZATION_PWD"
+    set -x
+  fi
 
   python3 "$_packaging/sign_chrome.py" \
     --input out/Default \
     --output out/Default/signed \
     --identity "$MACOS_CERTIFICATE_NAME" \
-    --disable-packaging --notarize \
+    --disable-packaging \
     "${NOTARY_ARGS[@]}"
 
   _app="out/Default/signed/stable/Helium.app"
