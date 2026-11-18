@@ -1,0 +1,13 @@
+--- a/chrome/installer/mac/signing/chromium_config.py
++++ b/chrome/installer/mac/signing/chromium_config.py
+@@ -19,3 +19,10 @@ class ChromiumCodeSignConfig(BuildPropsC
+         if os.environ.get('PROD_MACOS_SPECIAL_ENTITLEMENTS_PROFILE_PATH'):
+             return 'Helium'
+         return None
++
++    @property
++    def run_spctl_assess(self):
++        # The pipeline assesses the app before notarizing it, and Gatekeeper
++        # rejects a Developer ID app until it is notarized. Assess the stapled
++        # app after signing instead.
++        return False
