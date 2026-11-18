@@ -36,15 +36,16 @@
              verify_options=verify_options,
          ),
          'helper-renderer-app': CodeSignedProduct(
-@@ -96,7 +102,12 @@ def get_parts(config):
+@@ -96,7 +102,13 @@ def get_parts(config):
                  config
              ),
              '{}.helper'.format(uncustomized_bundle_id),
 -            options=CodeSignOptions.FULL_HARDENED_RUNTIME_OPTIONS,
 +            # With the AperitifHelpers feature on, the CDM utility process
-+            # runs in this helper instead, so it needs the same signing.
-+            options=CodeSignOptions.RESTRICT
-+            | CodeSignOptions.KILL
++            # runs in this helper instead, so it needs library validation off
++            # too. No RESTRICT: dyld refuses the @executable_path load of
++            # libaperitif.dylib in a restricted process without it.
++            options=CodeSignOptions.KILL
 +            | CodeSignOptions.HARDENED_RUNTIME,
 +            entitlements='helper-entitlements.plist',
              verify_options=verify_options,
