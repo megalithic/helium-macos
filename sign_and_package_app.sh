@@ -21,14 +21,18 @@ if [ -n "${MACOS_CERTIFICATE_NAME:-}" ]; then
       NOTARY_ARGS+=("--notary-arg=--keychain=$HOME/Library/Keychains/build.keychain-db")
     fi
 
-    # Keep xtrace from echoing the password into logs.
-    { set +x; } 2>/dev/null
-    xcrun notarytool \
-      "${CREDENTIAL_ARGS[@]}" \
-      --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" \
-      --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" \
-      --password "$PROD_MACOS_NOTARIZATION_PWD"
-    set -x
+    if [ -n "${PROD_MACOS_NOTARIZATION_PWD:-}" ]; then
+      # Keep xtrace from echoing the password into logs.
+      { set +x; } 2>/dev/null
+      xcrun notarytool \
+        "${CREDENTIAL_ARGS[@]}" \
+        --apple-id "$PROD_MACOS_NOTARIZATION_APPLE_ID" \
+        --team-id "$PROD_MACOS_NOTARIZATION_TEAM_ID" \
+        --password "$PROD_MACOS_NOTARIZATION_PWD"
+      set -x
+    else
+      echo "warn: PROD_MACOS_NOTARIZATION_PWD unset; using the stored notarytool-profile" >&2
+    fi
   fi
 
   python3 "$_packaging/sign_chrome.py" \
