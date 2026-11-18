@@ -36,7 +36,7 @@ if [ -n "${MACOS_CERTIFICATE_NAME:-}" ]; then
     --output out/Default/signed \
     --identity "$MACOS_CERTIFICATE_NAME" \
     --disable-packaging \
-    "${NOTARY_ARGS[@]}"
+    ${NOTARY_ARGS[@]+"${NOTARY_ARGS[@]}"}
 
   _app="out/Default/signed/stable/Helium.app"
 else
